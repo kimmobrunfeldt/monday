@@ -1,4 +1,4 @@
-monday
-======
+Monday - *Gathers documentation for you.*
+=========================================
 
-Automatic documentation generator for Python
+Monday is automatic documentation generator for Python
