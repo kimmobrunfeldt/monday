@@ -88,7 +88,3 @@ def moduletree(dirpath, python_extensions=python_extensions,
                 if add_module:
                     utils.addnode(tree, dircomponents, head, str(module))
     return tree
-
-
-if __name__ == '__main__':
-    print ''
