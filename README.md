@@ -8,6 +8,7 @@ Monday is automatic documentation generator for Python.
 **This is a work in progress!**
 *projectinfo.py* is currently working but outputs a raw JSON.
 Also, decorators, properties and many other Python features are not inspected correctly.
+Goal is that the system could automatically generate HTML documentation from the inspected information.
 
 projectinfo.py
 --------------
@@ -31,7 +32,7 @@ Note: All values are casted to str before printing.
             "funcs": {
                 "mul": {
                     "doc": "Multiplies a by b.", 
-                    "obj": "<function mul at 0x10c7058c0>", 
+                    "obj": "<function mul at 0x10e0398c0>", 
                     "params": "(['a', 'b'], [], None, None)"
                 }
             }, 
@@ -49,7 +50,7 @@ Note: All values are casted to str before printing.
         "funcs": {
             "add": {
                 "doc": "Returns sum of a, b and c.", 
-                "obj": "<function add at 0x10c705848>", 
+                "obj": "<function add at 0x10e039848>", 
                 "params": "(['a', 'b'], [('c', 0)], None, None)"
             }
         }, 
