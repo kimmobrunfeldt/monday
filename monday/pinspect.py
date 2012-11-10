@@ -15,95 +15,71 @@ respect_init = False
 include_import_errors = True
 
 
-def issamesource(objlist):
-    if len(objlist) < 2:
-        return True
+class ModuleTree(object):
+    """Provides useful operations for a directory which contains Python
+    modules.
 
-    objfile = inspect.getfile(objlist[0])
-    objfile = utils.normalize_extension(objfile, ['.pyc'], '.py')
-    for obj in objlist[1:]:
-        other_objfile = inspect.getfile(obj)
-        other_objfile = utils.normalize_extension(other_objfile, ['.pyc'],
-                                                  '.py')
-
-        if objfile != other_objfile:
-            return False
-    return True
-
-
-def dirsplit(path):
-    """Splits path to its directory components.
-    '/home/xx'' -> ['home', 'xx']
-    '/home/xx' -> ['home', 'xx']
+    Args:
+        dirpath: Path of the directory to inspect.
     """
-    components = []
-    if not len(path):
-        return components
+    def __init__(self, dirpath, python_extensions=python_extensions,
+                 ignore_modules=ignore_modules, respect_init=respect_init,
+                 include_import_errors=include_import_errors):
+        self.dirpath = dirpath
 
-    path = path.strip('\\/')
+        self.python_extensions = python_extensions
+        self.ignore_modules = ignore_modules
+        self.respect_init = respect_init
+        self.include_import_errors = include_import_errors
 
-    component = True
-    while component:
-        path, component = os.path.split(path)
-        if len(component):
-            components.append(component)
+        self._createtree()
 
-    components.reverse()
-    return components
+    def gettree(self):
+        """Returns module tree."""
+        return self._tree
 
+    def _createtree(self):
+        """Creates the tree of modules."""
+        self._tree = {}
+        for directory, dirnames, filenames in os.walk(self.dirpath):
 
-def importpath(path):
-    """Imports Python module from path and returns the module."""
-    moduledir, filename = os.path.split(path)
-    modulename, ext = os.path.splitext(filename)
+            if not os.path.isfile(os.path.join(directory, '__init__.py')):
+                if self.respect_init:
+                    continue
 
-    sys.path.insert(0, moduledir)
-    try:
-        module = __import__(modulename)
-    except SystemExit:
-        return ImportError('File \'%s\' raised SystemExit.' % path)
-    sys.path.remove(moduledir)
-    sys.stdout = sys.__stdout__
-    return module
+            for filename in filenames:
+                self._createnode(directory, filename)
 
+    def _createnode(self, directory, filename):
+        """Creates single node(module) to the tree of modules."""
+        relativepath = directory[len(self.dirpath):]
+        dircomponents = utils.dirsplit(relativepath)
 
-def moduletree(dirpath, python_extensions=python_extensions,
-               ignore_modules=ignore_modules, respect_init=respect_init,
-               include_import_errors=include_import_errors):
-    """Return tree structure of dirpath directorys Python modules."""
-    tree = {}
+        filepath = os.path.abspath(os.path.join(directory, filename))
+        head, ext = os.path.splitext(filename)
 
-    for directory, dirnames, filenames in os.walk(dirpath):
+        if ext in self.python_extensions and head not in self.ignore_modules:
+            add_module = True
+            try:
+                module = utils.importpath(filepath)
+            except Exception, e:
+                module = e
+                if not self.include_import_errors:
+                    add_module = False
 
-        if not os.path.isfile(os.path.join(directory, '__init__.py')):
-            if respect_init:
-                continue
-
-        relativepath = directory[len(dirpath):]
-        dircomponents = dirsplit(relativepath)
-
-        for filename in filenames:
-            filepath = os.path.abspath(os.path.join(directory, filename))
-            head, ext = os.path.splitext(filename)
-
-            if ext in python_extensions and head not in ignore_modules:
-
-                add_module = True
-                try:
-                    module = importpath(filepath)
-                except Exception, e:
-                    module = e
-                    if not include_import_errors:
-                        add_module = False
-
-                if add_module:
-                    utils.addnode(tree, dircomponents, head, module)
-    return tree
+            if add_module:
+                utils.addnode(self._tree, dircomponents, head, module)
 
 
-def moduleinfo(module):
-    """Returns information about module."""
-    info = {'class': {}, 'func': {}, 'var': {}}
+def getdoc(obj):
+    return inspect.getdoc(obj)
+
+
+def moduleinfo(module, expand=False):
+    """Returns classes, functions and module level variables of a module.
+    """
+    info = {'doc': getdoc(module), 'obj': module,
+            'classes': {}, 'funcs': {}, 'vars': {}}
     pred = lambda x: not inspect.ismodule(x)
 
     for name, member in inspect.getmembers(module, pred):
@@ -112,26 +88,94 @@ def moduleinfo(module):
             continue
 
         try:
-            if not issamesource([module, member]):
+            if not utils.issamesource([module, member]):
                 continue
         except TypeError:
             pass
 
         if inspect.isclass(member):
-            info['class'][name] = member
+            info['classes'][name] = classinfo(member)
         elif inspect.isfunction(member):
-            info['func'][name] = member
+            info['funcs'][name] = funcinfo(member)
         else:
             if not inspect.isbuiltin(member):
-                info['var'][name] = member
+                info['vars'][name] = varinfo(member)
 
     return info
 
 
 def classinfo(cls):
-    pass
+    """Return information about class cls in dict format."""
+    info = {'obj': cls, 'bases': cls.__bases__, 'methods': {}, 'vars': {}}
+
+    for name, member in inspect.getmembers(cls):
+
+        if name.startswith('__'):
+            continue
+
+        try:
+            if not utils.issamesource([cls, member]):
+                continue
+        except TypeError:
+            pass
+
+        if inspect.ismethod(member):
+            info['methods'][name] = methodinfo(member)
+        else:
+            if not inspect.isbuiltin(member):
+                info['vars'][name] = memberinfo(member)
+    return info
 
 
-if __name__ == '__main__':
-    module = importpath('monday/test.py')
-    print moduleinfo(module)
+def getparams(func, ismethod=False):
+    """Get the names and default values of a Python function's arguments.
+    A tuple of four things is returned: (args, kwargs, argpack, kwargpack).
+    args is a list of the argument names (it may contain nested lists).
+    kwargs is a list of keyword arguments, single keyword argument is
+    a tuple of two items (name, defaultvalue).
+    argpack and kwargpack are the names of the * and ** arguments or None.
+    If ismethod is True, first argument of args is removed.
+    """
+    argspec = inspect.getargspec(func)
+
+    defaults = argspec.defaults
+    if defaults is None:
+        defaults = []
+
+    pivot = len(argspec.args) - len(defaults)
+    args = argspec.args[:pivot]
+    if ismethod:
+        args.pop(0)
+
+    kwargs = []
+    for i, arg in enumerate(argspec.args[pivot:]):
+            kwargs.append((arg, defaults[i]))
+
+    return (args, kwargs, argspec.varargs, argspec.keywords)
+
+
+def memberinfo(var):
+    return {'obj': var}
+
+
+def methodinfo(method):
+    params = getparams(method, ismethod=True)
+    return {'doc': getdoc(method), 'obj': method, 'params': params}
+
+
+def funcinfo(func):
+    params = getparams(func)
+    return {'doc': getdoc(func), 'obj': func, 'params': params}
+
+
+def varinfo(var):
+    return {'obj': var}
+
+
+def expand_moduletree(moduletree):
+    """Expands moduletree so it will contain all information in its branches.
+    Note: moduletree is modified in-place.
+    """
+    # For all non-dict values, call moduleinfo.
+    expanded_moduleinfo = lambda x: moduleinfo(x, expand=True)
+    utils.dictmap(moduletree, expanded_moduleinfo)
