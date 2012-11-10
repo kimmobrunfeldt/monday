@@ -6,7 +6,20 @@ Monday – *Gathers documentation for you.*
 
 Monday is automatic documentation generator for Python.
 
+**This is a work in progress!**
+*projectinfo.py* is currently working but outputs a raw JSON.
+Also, decorators, properties and many other Python features are not inspected correctly.
+
 projectinfo.py
 --------------
 
 {{ system('python projectinfo.py') | indent(4, true) }}
+
+
+Inspecting exampleproject package
+---------------------------------
+
+Note: All values are casted to str before printing.
+
+```json
+{{ system('python projectinfo.py exampleproject') }}```
