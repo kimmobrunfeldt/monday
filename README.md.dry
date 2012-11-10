@@ -9,6 +9,7 @@ Monday is automatic documentation generator for Python.
 **This is a work in progress!**
 *projectinfo.py* is currently working but outputs a raw JSON.
 Also, decorators, properties and many other Python features are not inspected correctly.
+Goal is that the system could automatically generate HTML documentation from the inspected information.
 
 projectinfo.py
 --------------
