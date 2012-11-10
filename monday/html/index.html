@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="author" content="{{ author }}" />
+    <meta name="description" content="{{ description }}" />
+    <script type="text/javascript" src="js/main.js"></script>
+    <script type="text/javascript" src="js/jquery.js"></script>
+    <link rel="stylesheet" type="text/css" href="css/main.css" />
+    <title>Documentation for {{ project_name }} {{ project_version }}</title>
+</head>
+<body>
+
+{% for module in modules %}
+    <ul>
+        <li>{{ module }}</li>
+    </ul>
+{% endfor %}
+
+</body>
+</html>
